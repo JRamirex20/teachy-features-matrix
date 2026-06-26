@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Teachy Student Web, Prioritization Matrix</title>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --panel: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --line: #e4e2dc;
+    --accent: #1a1a1a;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+    --radius: 12px;
+    --quick: #e8f3ec;
+    --strategic: #eae6f5;
+    --fill: #f0eee6;
+    --money: #f5e8e6;
+    --dot: #1a1a1a;
+    --dot-pending: #c9c5bd;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif; }
+  header {
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 5;
+  }
+  header h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  header .sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  header .actions { display: flex; gap: 8px; align-items: center; }
+  .progress { font-size: 12px; color: var(--muted); margin-right: 12px; }
+  button {
+    font: inherit;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  button:hover { border-color: #c9c5bd; }
+  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  button.primary:hover { background: #000; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+
+  main { display: grid; grid-template-columns: 1fr 420px; gap: 0; height: calc(100vh - 68px); }
+
+  .board-wrap { padding: 24px; overflow: auto; display: flex; flex-direction: column; }
+  .axis-row { display: grid; grid-template-columns: 32px 1fr; gap: 8px; flex: 1; min-height: 540px; }
+  .y-axis {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    text-align: center; font-size: 12px; color: var(--muted);
+    letter-spacing: 0.04em; text-transform: uppercase; align-self: center;
+  }
+  .matrix-stack { display: flex; flex-direction: column; gap: 8px; }
+  .matrix {
+    position: relative; flex: 1; min-height: 540px;
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: #fff;
+    overflow: hidden;
+  }
+  .quad-bg { position: absolute; width: 50%; height: 50%; }
+  .bg-strategic { top: 0; left: 0; background: var(--strategic); }
+  .bg-quick { top: 0; left: 50%; background: var(--quick); }
+  .bg-money { top: 50%; left: 0; background: var(--money); }
+  .bg-fill { top: 50%; left: 50%; background: var(--fill); }
+  .quad-label {
+    position: absolute; font-size: 11px; font-weight: 600;
+    color: rgba(0,0,0,0.55); text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 10px 14px;
+  }
+  .quad-label small { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 10px; opacity: .75; }
+  .lbl-strategic { top: 0; left: 0; }
+  .lbl-quick { top: 0; right: 0; text-align: right; }
+  .lbl-money { bottom: 0; left: 0; }
+  .lbl-fill { bottom: 0; right: 0; text-align: right; }
+  .midline-x, .midline-y {
+    position: absolute; background: rgba(0,0,0,0.08);
+  }
+  .midline-x { left: 0; right: 0; top: 50%; height: 1px; }
+  .midline-y { top: 0; bottom: 0; left: 50%; width: 1px; }
+
+  .dot {
+    position: absolute;
+    background: var(--dot); color: #fff;
+    padding: 4px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 500;
+    cursor: pointer; white-space: nowrap;
+    box-shadow: var(--shadow);
+    border: 2px solid #fff;
+    transition: transform .15s ease;
+    max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dot.active { background: #fff; color: var(--ink); border-color: var(--ink); }
+  .dot.anchor-center { transform: translate(-50%, 50%); }
+  .dot.anchor-center:hover { transform: translate(-50%, 50%) scale(1.06); }
+  .dot.anchor-left { transform: translate(0, 50%); }
+  .dot.anchor-left:hover { transform: translate(0, 50%) scale(1.06); }
+  .dot.anchor-right { transform: translate(-100%, 50%); }
+  .dot.anchor-right:hover { transform: translate(-100%, 50%) scale(1.06); }
+
+  .x-axis { text-align: center; font-size: 12px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; padding-left: 32px; }
+
+  .legend {
+    margin-top: 14px; display: flex; gap: 16px; font-size: 12px; color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i {
+    width: 10px; height: 10px; border-radius: 3px; display: inline-block;
+  }
+
+  aside.eval {
+    border-left: 1px solid var(--line);
+    background: var(--panel);
+    overflow: auto;
+    padding: 24px 22px;
+  }
+  aside.eval h2 { font-size: 18px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  aside.eval .ft { font-size: 12px; color: var(--muted); margin-bottom: 18px; display: flex; justify-content: space-between; }
+  aside.eval .ft .pill { background: #f0eee6; color: var(--ink); padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  aside.eval section { margin-bottom: 10px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+  aside.eval section > h4 {
+    font-size: 15px; letter-spacing: -0.005em; color: var(--ink); margin: 0;
+    font-weight: 600; padding: 12px 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    user-select: none; background: #fff;
+  }
+  aside.eval section > h4:hover { background: #faf9f5; }
+  aside.eval section > h4 .chev { font-size: 12px; color: var(--muted); transition: transform .15s ease; }
+  aside.eval section.collapsed > h4 .chev { transform: rotate(-90deg); }
+  aside.eval section .body { padding: 0 14px 14px; }
+  aside.eval section.collapsed .body { display: none; }
+  aside.eval section p { font-size: 13px; line-height: 1.55; margin: 0; color: var(--ink); }
+
+  .rate-block {
+    margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line);
+  }
+  .rate-block h3 { font-size: 13px; margin: 0 0 10px; font-weight: 600; }
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .slider-row input[type=range] { flex: 1; accent-color: var(--ink); }
+  .slider-val {
+    width: 36px; height: 36px; border-radius: 999px;
+    background: var(--ink); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 15px;
+  }
+  .scale-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+  .impact-desc {
+    background: #faf9f5; border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; font-size: 12px; color: var(--ink); margin-bottom: 14px;
+    min-height: 38px;
+  }
+  .nav-row { display: flex; gap: 8px; justify-content: flex-end; }
+
+  .time-block {
+    background: #faf9f5; border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 14px;
+  }
+  .time-block .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .time-block .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+  .time-block .weeks { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .time-block .bar { height: 8px; background: #ece9df; border-radius: 999px; overflow: hidden; }
+  .time-block .bar .fill { height: 100%; background: var(--ink); border-radius: 999px; transition: width .25s ease; }
+  .time-block .scale { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .time-block.spike .bar .fill { background: repeating-linear-gradient(45deg, #c9c5bd 0 6px, #ece9df 6px 12px); }
+  .tech-sub { margin-top: 12px; }
+  .tech-sub h5 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 4px; font-weight: 600; }
+  .tech-sub p { font-size: 13px; line-height: 1.55; margin: 0 0 4px; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .empty-state h2 { color: var(--ink); font-size: 17px; margin-bottom: 8px; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 980px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    aside.eval { border-left: none; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Teachy Student Web, Prioritization Matrix</h1>
+    <div class="sub">Rate one feature at a time. Each card lands on the matrix by its real impact and complexity numbers.</div>
+  </div>
+  <div class="actions">
+    <span class="progress" id="progress">0 of 14</span>
+    <button id="resetBtn">Reset</button>
+    <button id="shareBtn" class="primary">Share my layout</button>
+  </div>
+</header>
+
+<main>
+  <section class="board-wrap">
+    <div class="axis-row">
+      <div class="y-axis">Student Impact, low to high</div>
+      <div class="matrix-stack">
+        <div class="matrix" id="matrix">
+          <div class="quad-bg bg-strategic"></div>
+          <div class="quad-bg bg-quick"></div>
+          <div class="quad-bg bg-money"></div>
+          <div class="quad-bg bg-fill"></div>
+          <div class="midline-x"></div>
+          <div class="midline-y"></div>
+          <div class="quad-label lbl-strategic">Strategic Bets <small>high impact, high complexity</small></div>
+          <div class="quad-label lbl-quick">Quick Wins <small>high impact, low complexity</small></div>
+          <div class="quad-label lbl-money">Money Pit <small>low impact, high complexity</small></div>
+          <div class="quad-label lbl-fill">Fill ins <small>low impact, low complexity</small></div>
+        </div>
+        <div class="x-axis">Engineering Complexity, low to high</div>
+        <div class="legend">
+          <span><i style="background: var(--dot)"></i> Rated, click to re-rate</span>
+          <span><i style="background: var(--quick)"></i> Quick Wins</span>
+          <span><i style="background: var(--strategic)"></i> Strategic Bets</span>
+          <span><i style="background: var(--fill)"></i> Fill ins</span>
+          <span><i style="background: var(--money)"></i> Money Pit</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="eval" id="evalPanel">
+    <!-- populated by JS -->
+  </aside>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  // Each feature carries Gio's complexity (1 to 10, mapped from eng-weeks) and the detail blocks.
+  // Placeholders for now, will be replaced with the final TEA-365 writeup numbers.
+  const FEATURE_NAMES = {
+    streaks: "Streaks (Daily Rewards)",
+    xp: "XP and Levels",
+    flashcards: "Flashcards",
+    slides: "Slides Generator",
+    mindmaps: "Mind Maps",
+    chatbot: "Chatbot",
+    topic: "Topic Summary",
+    quiz: "Quiz",
+    crossword: "Crossword",
+    studyplan: "Study Plan",
+    youtube: "YouTube Summary",
+    cheatsheet: "Cheat Sheet",
+    wordsearch: "Word Search",
+    conceptmap: "Concept Map"
+  };
+
+  const WEEKS = {
+    streaks: 1.6, xp: 1.2, flashcards: 1.6, slides: 3.2, mindmaps: 3.6,
+    chatbot: 4.8, topic: 1.6, quiz: 2.0, crossword: 2.0, studyplan: null,
+    youtube: 1.6, cheatsheet: 1.2, wordsearch: 1.6, conceptmap: 3.6
+  };
+  const MAX_WEEKS = Math.max(...Object.values(WEEKS).filter(v => v !== null));
+  const HOURS_PER_WEEK = 20;
+  const MAX_HOURS = Math.round(MAX_WEEKS * HOURS_PER_WEEK);
+  // Complexity is relative to the heaviest feature in the queue: chatbot at MAX_WEEKS = 10/10.
+  // Spike-required features get pinned at 9/10 to flag high uncertainty.
+  const COMPLEXITY = Object.fromEntries(Object.entries(WEEKS).map(([k, w]) => {
+    if (w === null) return [k, 9];
+    return [k, Math.max(1, Math.round((w / MAX_WEEKS) * 10))];
+  }));
+
+  const DESCRIPTIONS = {
+    streaks: "Daily streak counter with rewards that fire when students keep their study habit alive.",
+    xp: "Experience points and level progression as students complete activities across the app.",
+    flashcards: "AI generated flashcard decks with flip animation, built for spaced repetition study.",
+    slides: "AI generated slide decks built from a topic or source material, with a light in app editor.",
+    mindmaps: "AI generated mind maps that visualize topic structure as an interactive node graph.",
+    chatbot: "Conversational AI tutor that answers student doubts and works through problems step by step.",
+    topic: "AI generated written summary of any topic, with markdown formatting.",
+    quiz: "AI generated quizzes with multiple question types, instant feedback, and a results screen.",
+    crossword: "AI generated crossword puzzles for vocabulary and concept review.",
+    studyplan: "Calendar based study plan. Scope is ambiguous, could be AI generated schedules or manual student calendar entries.",
+    youtube: "AI summary of a YouTube video pulled from its URL. Feature existence in the web app is unconfirmed.",
+    cheatsheet: "AI generated condensed reference sheet for a topic, formatted as bullets or structured text.",
+    wordsearch: "AI generated word search puzzle for vocabulary practice with drag to select interaction.",
+    conceptmap: "AI generated concept map. May be a distinct feature from Mind Maps or an alias, needs confirmation."
+  };
+
+  const MAINTENANCE = {
+    streaks: "Backend is complete and stable, no active churn detected. Daily reset logic must stay server side.",
+    xp: "Backend is complete and stable, no active churn detected. Low ongoing maintenance burden.",
+    flashcards: "Stable codebase, low ongoing churn expected. Self contained feature.",
+    slides: "Hot zone, a dedicated team actively maintains Slides with 216+ commits. The Flutter version will need ongoing sync work to keep pace with web feature additions.",
+    mindmaps: "Backend is stable. The third party Flutter graph rendering library choice will set the long term maintenance baseline.",
+    chatbot: "Hot zone, a v2 rewrite shipped on June 15 with 64 commits of active development. API is currently unstable, expect rework during and after the port.",
+    topic: "Stable, no active development detected. Low maintenance burden.",
+    quiz: "Stable. May share question rendering logic with the Practice feature, so changes there can ripple in.",
+    crossword: "Stable backend, low churn. Custom grid rendering is the main maintenance surface.",
+    studyplan: "Sits on top of the Calendar codebase (222 commits, primarily teacher focused). Student view may be read only. Calendar boundary changes will affect this feature.",
+    youtube: "Feature existence is not yet confirmed. Maintenance profile cannot be assessed until the spike is done.",
+    cheatsheet: "Assumed stable with low churn. Custom text formatting needs may surface later.",
+    wordsearch: "Stable, low churn. Same custom grid pattern as Crossword.",
+    conceptmap: "Feature distinctness from Mind Maps is not yet confirmed. Maintenance profile is unknown until a spike clarifies it."
+  };
+
+  const DETAILS = {
+    streaks: {
+      porting: "Estimated at 1.6 weeks (32 eng-hours). Backend is fully complete with streak calculation, timezone handling, and rewards logic already in place. Flutter UI scope covers counter display component, countdown timer widget, and reward claim button with modal, a clean port from existing tracking logic.",
+      parity: "Counter display, reward claiming, and streak history are clean ports with no degradation. Push notifications for 'streak at risk' reminders are the one optional native addition not present in the web version.",
+      backend: "Fully shared with mobile: existing /api/student/streaks endpoint and reward claim API. No web only dependencies.",
+      risks: "Timezone handling is already solved in the backend. The main constraint is that daily reset logic must sync with the server and cannot be client calculated.",
+      sequencing: "Can ship in parallel with XP/Levels as independent systems. Recommended to bundle both for a cohesive gamification launch.",
+      usage: "104.6 unique users claimed streak rewards in the last 12 months. Mobile sessions account for 62% of total, signaling high mobile engagement potential."
+    },
+    xp: {
+      porting: "Estimated at 1.2 weeks (24 eng-hours). Backend is complete with XP calculation and level-up logic. Flutter UI scope is simpler than Streaks, progress bar widget, level display badge, and level-up animation modal with no timer component.",
+      parity: "XP bar, level display, and level-up celebrations are clean ports with no degraded interactions expected.",
+      backend: "Fully shared with mobile: /api/student/xp endpoint and level calculation service. No web only dependencies.",
+      risks: "Real-time XP updates require a decision between WebSocket and polling for instant feedback. Animation performance on low-end Android devices is a secondary concern.",
+      sequencing: "Can ship in parallel with Streaks. Recommended to bundle both features for a unified gamification launch.",
+      usage: "447.7 mobile level-ups recorded in the last 12 months, a strong mobile engagement signal."
+    },
+    flashcards: {
+      porting: "Estimated at 1.6 weeks (32 eng-hours). Backend is complete with generation API and flashcard storage. Flutter UI scope covers generation form, card deck viewer, flip animation using AnimatedSwitcher, and study session tracker.",
+      parity: "Card flipping and swipe gestures for next/previous card are clean ports that play to Flutter's native animation strengths. Offline caching of generated cards is a nice to have excluded from v1.",
+      backend: "Fully shared with mobile: /api/ai-tools/flashcards/generate, flashcard CRUD APIs, and the shared credit consumption API.",
+      risks: "Flip animation polish is critical for the expected mobile UX feel. Text overflow handling for long-form flashcard content needs attention.",
+      sequencing: "Ships independently. Recommended after Streaks/XP so the engagement foundation is in place first.",
+      usage: "359 users generated flashcards in the last 12 months, averaging approximately 3.5 uses per mobile student."
+    },
+    slides: {
+      porting: "Estimated at 3.2 weeks (64 eng-hours). Backend is complete with generation API and template system. Flutter UI scope includes a multi step generation form, slide viewer/carousel, and a basic slide editor for text and image adjustments, more complex than simple tools due to the editor component.",
+      parity: "Slide viewing and carousel navigation are clean ports. The slide editor will be simplified on mobile due to smaller touch targets and limited formatting options. Export/share functionality works cleanly on mobile.",
+      backend: "Shared with mobile: /api/ai-tools/slides/generate and slide template service. A dedicated team actively maintains the Slides feature (216+ commits), creating a high ongoing alignment burden for the Flutter version.",
+      risks: "Active development pace means the Flutter version may lag behind web feature additions. Editor UX requires mobile specific simplification. Image handling and rendering performance need validation.",
+      sequencing: "High maintenance feature, recommended after simpler AI tools prove mobile adoption. Depends on credit management UI being in place.",
+      usage: "4,149 users generated slides in the last 12 months, averaging approximately 39.7 uses per mobile student, the number-one AI tool by usage."
+    },
+    mindmaps: {
+      porting: "Estimated at 3.6 weeks (72 eng-hours). Backend is complete with graph generation API. Flutter UI requires a generation form, a graph visualization widget (needs flutter_graph or equivalent package), zoom/pan controls, and node tap interactions, no built-in Flutter primitive covers this.",
+      parity: "Pinch to zoom and pan navigation are critical gestures that require mobile specific implementation. Tap to expand/collapse nodes ports cleanly. Node editing may need simplification versus the web experience.",
+      backend: "Fully shared with mobile: /api/ai-tools/mindmap/generate and graph data structure. A third party Flutter graph rendering library is required and not yet selected.",
+      risks: "Graph library selection and rendering performance on complex maps are the primary unknowns. Touch target sizing for small nodes on phone screens and memory management for large mind maps are additional concerns.",
+      sequencing: "Ships independently. Recommended after simpler tools (Flashcards, Quiz) to first validate mobile AI tool adoption patterns.",
+      usage: "Tracked only within the aggregate 'Used AI Tool' event, not individually in the top 5. Estimated under 200 users based on aggregate distribution."
+    },
+    chatbot: {
+      porting: "Estimated at 4.8 weeks (96 eng-hours). Backend covers chat API, streaming responses, and session management. Flutter UI scope is broad: chat message list, input field, streaming display via StreamBuilder, session switcher, and hearts/hints system across multiple screens.",
+      parity: "Chat UI is a mobile native pattern and streams well with Flutter StreamBuilder. Push notifications for tutor replies and camera integration for homework photo uploads are native additions not present in the web version.",
+      backend: "Shared with mobile: /api/student-tutor/chat and streaming SSE endpoint. A v2 rewrite shipped on June 15 with 64 commits of active development, making the API currently unstable for a parallel port.",
+      risks: "The recent v2 rewrite risks breaking changes during Flutter development. Streaming must use SSE or WebSocket (different from the web Vercel AI SDK approach). Real-time state sync and high credit burn rate per message add further complexity.",
+      sequencing: "Deferred to Phase 2. Recommended to wait 2 to 3 months post v2 launch for API stabilization. Depends on credit management UI and streaming infrastructure decisions.",
+      usage: "'Student Tutor Send Doubt' events are tracked in Mixpanel but not available in the provided data. Estimated moderate usage, not in the top 5 AI tools by volume."
+    },
+    topic: {
+      porting: "Estimated at 1.6 weeks (32 eng-hours). Backend is complete with summary generation API. Flutter UI scope is simple: a topic input form with customization options and a generated text display widget with markdown/rich text rendering.",
+      parity: "Form input, text display, and copy/share are clean ports that map directly to native mobile patterns. Markdown rendering may require the flutter_markdown package.",
+      backend: "Fully shared with mobile: /api/ai-tools/topic-summary/generate and the shared credit consumption API.",
+      risks: "Text overflow and readability on small screens are the main concerns. Markdown formatting edge cases need validation.",
+      sequencing: "Ships independently. Recommended as an early win given its simplicity and high usage.",
+      usage: "747 users generated topic summaries in the last 12 months, averaging approximately 7.2 uses per mobile student."
+    },
+    quiz: {
+      porting: "Estimated at 2.0 weeks (40 eng-hours). Backend is complete with quiz generation API and question validation. Flutter UI covers generation form (topic, difficulty, quantity), question display with options, answer validation, instant feedback, and a results summary screen.",
+      parity: "Quiz taking is a mobile native interaction pattern, touch friendly option selection with radio buttons and cards ports cleanly. MathJax rendering for math questions is a potential degraded interaction requiring a Flutter compatible math rendering solution.",
+      backend: "Fully shared with mobile: /api/ai-tools/quiz/generate and grading logic. May share question rendering logic with the Practice feature.",
+      risks: "Question type variety (MCQ, T/F, fill in blank) increases UI scope. Math rendering and timer implementation for timed quizzes are secondary risks.",
+      sequencing: "Ships independently. Recommended after Flashcards given similar complexity.",
+      usage: "541 users generated quizzes in the last 12 months, averaging approximately 5.2 uses per mobile student."
+    },
+    crossword: {
+      porting: "Estimated at 2.0 weeks (40 eng-hours). Backend is complete with generation API and grid solver. Flutter UI requires a custom grid display widget (CustomPainter for cells), clue list, cell tap/input handling, and validation feedback. Web already works on mobile via responsive design.",
+      parity: "Grid interaction on touch ports cleanly. On screen keyboard UX for letter input is a mobile specific addition. Grid complexity may need to be capped for phone screen sizes.",
+      backend: "Fully shared with mobile: /api/ai-tools/crossword/generate and grid validation API.",
+      risks: "Custom grid rendering with Flutter CustomPainter is non trivial. Touch target sizing for small cells and keyboard management (focus, input switching between cells) are the primary risks.",
+      sequencing: "Ships independently. Recommended in Phase 2 or 3 given lower priority versus core tools.",
+      usage: "Not in the top 8 individually tracked AI tools. Estimated under 100 users based on aggregate 'Used AI Tool' distribution."
+    },
+    studyplan: {
+      porting: "Requires a discovery spike before estimation. It is unclear whether the backend serves AI generated study plans or manual calendar CRUD entries, and the answer fundamentally changes the Flutter UI scope and effort.",
+      parity: "Calendar viewing works on mobile. Plan creation complexity is unknown until the feature scope is defined. Study reminder push notifications are an expected native addition.",
+      backend: "Depends on calendar infrastructure (222 commits, primarily teacher focused), the student view may be read only. If AI generated, credit consumption and a generation API are involved; if manual, simple CRUD suffices.",
+      risks: "Scope ambiguity is the primary blocker: AI generated schedules versus student created calendar events are fundamentally different products. Integration with the existing 222 commit Calendar codebase adds complexity regardless.",
+      sequencing: "Blocked until a discovery spike clarifies scope and the Calendar feature boundaries are understood.",
+      usage: "A 'Clicked Create Study Plan' event exists in Mixpanel, confirming the feature is used, but the usage count was not available in the provided data set."
+    },
+    youtube: {
+      porting: "Estimated at 1.6 weeks (32 eng-hours) assuming the feature exists in the web app. Backend would cover YouTube transcript extraction and summarization API. Flutter UI scope is simple: URL input field, optional video preview via youtube_player_flutter, and a summary display widget.",
+      parity: "URL input and text display are clean ports. Video embedding is optional and would use a native Flutter YouTube package.",
+      backend: "Existence of /api/ai-tools/youtube-summary needs verification before any backend assumptions can be made. If confirmed, it would be shared with mobile plus the credit consumption API.",
+      risks: "The feature may not be launched yet, it was absent from all Mixpanel data and thread discussions. YouTube API rate limits and transcript availability are backend level risks if the feature does exist.",
+      sequencing: "Blocked until the feature is confirmed to exist in the web app. If confirmed, it ships independently.",
+      usage: "Not found in 'Used AI Tool' Mixpanel data for the last 12 months, the feature may not be launched or has zero usage to date."
+    },
+    cheatsheet: {
+      porting: "Estimated at 1.2 weeks (24 eng-hours). Backend is assumed complete with a cheat sheet generation API and formatting logic. Flutter UI scope mirrors Topic Summary: a generation form with topic input and a formatted text display using markdown or structured bullet points.",
+      parity: "Form input, text display, and copy/share are clean ports with full parity. Text based output formats well on mobile.",
+      backend: "Assumed shared with mobile: /api/ai-tools/cheat-sheet/generate and the shared credit consumption API.",
+      risks: "Cheat sheet layout readability on small screens is the primary concern. Custom text formatting beyond standard markdown may be needed depending on the output structure.",
+      sequencing: "Ships independently. Recommended in Phase 3 given lower priority relative to core tools.",
+      usage: "Not in the top 8 individually tracked AI tools. Estimated under 150 users based on aggregate 'Used AI Tool' distribution."
+    },
+    wordsearch: {
+      porting: "Estimated at 1.6 weeks (32 eng-hours). Backend is complete with generation API and grid/word list. Flutter UI requires a grid display widget similar to Crossword, a word list panel, drag gesture handling for word selection, and validation feedback.",
+      parity: "Touch based word selection via drag gesture is a mobile native interaction that ports cleanly. Grid visualization works well on mobile.",
+      backend: "Fully shared with mobile: /api/ai-tools/word-search/generate and validation API.",
+      risks: "Drag gesture implementation via Flutter GestureDetector requires care. Grid rendering with CustomPainter (same pattern as Crossword) and word highlighting visual feedback are additional implementation risks.",
+      sequencing: "Ships independently. Recommended in Phase 3 given lower priority versus core tools.",
+      usage: "Not in the top 8 individually tracked AI tools. Estimated under 100 users based on aggregate distribution."
+    },
+    conceptmap: {
+      porting: "Estimated at 3.6 weeks (72 eng-hours) assuming this is a distinct feature from Mind Maps. Backend would require a concept map generation API and graph structure. Flutter UI would follow the same approach as Mind Maps and may share the graph rendering library.",
+      parity: "Zoom/pan gesture controls are critical and require mobile specific implementation, same as Mind Maps. Node editing would be simplified versus the web version.",
+      backend: "Needs verification: it is unclear whether Concept Map is a distinct feature or an alias for Mind Maps. If distinct, a separate API endpoint and graph rendering library are required.",
+      risks: "The feature may be a duplicate of Mind Maps, in which case the estimate is moot. A spike is needed to confirm distinctness. If distinct, all Mind Maps risks apply: graph library selection, rendering performance, and memory management.",
+      sequencing: "Blocked until feature distinctness is confirmed. If confirmed as a separate feature, sequencing follows the same recommendation as Mind Maps.",
+      usage: "Not found as a separate feature in Mixpanel data, may be tracked under Mind Maps or not yet launched."
+    }
+  };
+
+  const FEATURES = Object.keys(FEATURE_NAMES).map(id => ({
+    id, name: FEATURE_NAMES[id], complexity: COMPLEXITY[id]
+  }));
+
+  const IMPACT_DESCRIPTIONS = {
+    1: "Negligible. Few students would notice if it shipped.",
+    2: "Minor lift. Nice to have, not a needle mover.",
+    3: "Meaningful. Improves the experience for a real share of students.",
+    4: "High. Drives engagement or learning outcomes for most students.",
+    5: "Critical. Either unblocks a major use case or anchors the product."
+  };
+
+  const STORAGE_KEY = "teachy-matrix-guided-v1";
+  const ORDER_KEY = "teachy-matrix-order-v1";
+  const COLLAPSE_KEY = "teachy-matrix-collapsed-v2";
+
+  function loadCollapsed() {
+    try {
+      const raw = localStorage.getItem(COLLAPSE_KEY);
+      if (raw) return new Set(JSON.parse(raw));
+    } catch (_) {}
+    return new Set(["technical", "maintenance"]);
+  }
+  function saveCollapsed(set) {
+    try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...set])); } catch (_) {}
+  }
+  let collapsed = loadCollapsed();
+
+  function defaultState() {
+    return {}; // id -> impact (1..5)
+  }
+
+  function loadState() {
+    const hash = window.location.hash.replace(/^#/, "");
+    if (hash) {
+      try {
+        const decoded = JSON.parse(atob(decodeURIComponent(hash)));
+        if (decoded && typeof decoded === "object") return decoded;
+      } catch (_) {}
+    }
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (_) {}
+    return defaultState();
+  }
+
+  function saveState(state) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+  }
+
+  function loadOrder() {
+    try {
+      const raw = localStorage.getItem(ORDER_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length === FEATURES.length) return arr;
+      }
+    } catch (_) {}
+    // Generate random order
+    const ids = FEATURES.map(f => f.id);
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+    }
+    localStorage.setItem(ORDER_KEY, JSON.stringify(ids));
+    return ids;
+  }
+
+  let state = loadState();
+  let order = loadOrder();
+  let activeId = null;
+
+  function nextUnrated() {
+    return order.find(id => state[id] === undefined);
+  }
+
+  function ratedCount() {
+    return Object.keys(state).filter(k => state[k] !== undefined).length;
+  }
+
+  function render() {
+    renderMatrix();
+    renderProgress();
+    renderEval();
+    saveState(state);
+  }
+
+  function renderProgress() {
+    document.getElementById("progress").textContent = `${ratedCount()} of ${FEATURES.length}`;
+  }
+
+  function renderMatrix() {
+    const matrix = document.getElementById("matrix");
+    // remove existing dots
+    matrix.querySelectorAll(".dot").forEach(n => n.remove());
+    FEATURES.forEach(f => {
+      const impact = state[f.id];
+      if (impact === undefined) return;
+      const x = ((f.complexity - 1) / 9) * 100;
+      const y = ((impact - 1) / 4) * 100;
+      const dot = document.createElement("div");
+      let anchor = "anchor-center";
+      if (x > 75) anchor = "anchor-right";
+      else if (x < 15) anchor = "anchor-left";
+      dot.className = "dot " + anchor + (activeId === f.id ? " active" : "");
+      dot.style.left = x + "%";
+      dot.style.bottom = y + "%";
+      dot.textContent = f.name.replace(/\s*\(.*?\)\s*/g, "");
+      dot.title = `${f.name}, impact ${impact}, complexity ${f.complexity}`;
+      dot.addEventListener("click", () => { activeId = f.id; render(); });
+      matrix.appendChild(dot);
+    });
+  }
+
+  function renderEval() {
+    const root = document.getElementById("evalPanel");
+    let id = activeId;
+    if (!id) id = nextUnrated();
+    if (!id) {
+      root.innerHTML = `
+        <div class="empty-state">
+          <h2>All 14 features rated.</h2>
+          <p>Take a final look at the matrix. Click any card on the board to re-rate it. When you are done, hit <strong>Share my layout</strong> at the top right and send the link back to Juan.</p>
+        </div>
+      `;
+      return;
+    }
+    activeId = id;
+    const f = FEATURES.find(x => x.id === id);
+    const d = DETAILS[id] || {
+      porting: "TODO, awaiting Gio's final writeup.",
+      parity: "TODO",
+      backend: "TODO",
+      risks: "TODO",
+      sequencing: "TODO",
+      usage: "TODO"
+    };
+    const currentImpact = state[id] !== undefined ? state[id] : 3;
+    const weeks = WEEKS[id];
+    const isSpike = weeks === null;
+    const pct = (f.complexity / 10) * 100;
+    const weeksLabel = isSpike ? "spike required" : `${Math.round(weeks * HOURS_PER_WEEK)} eng-hours`;
+    const complexityBlock = `
+      <div class="time-block ${isSpike ? 'spike' : ''}">
+        <div class="row">
+          <span class="label">Engineering Complexity</span>
+          <span class="weeks">${f.complexity} / 10 <small style="font-weight:400;color:var(--muted);font-size:11px;margin-left:4px">(${weeksLabel})</small></span>
+        </div>
+        <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+        <div class="scale"><span>low</span><span>high</span></div>
+      </div>
+    `;
+    root.innerHTML = `
+      <h2>${f.name}</h2>
+      <div class="ft">
+        <span>Feature profile</span>
+        <span class="pill">Complexity ${f.complexity} / 10</span>
+      </div>
+
+      <section data-key="description"><h4>Description<span class="chev">▾</span></h4><div class="body"><p>${DESCRIPTIONS[id]}</p></div></section>
+
+      <section data-key="mixpanel"><h4>Current Mixpanel Usage<span class="chev">▾</span></h4><div class="body"><p>${d.usage}</p></div></section>
+
+      <section data-key="technical">
+        <h4>Technical Details<span class="chev">▾</span></h4>
+        <div style="padding: 0 14px 4px">${complexityBlock}</div>
+        <div class="body">
+          <div class="tech-sub"><h5>Porting Estimate</h5><p>${d.porting}</p></div>
+          <div class="tech-sub"><h5>Parity Check</h5><p>${d.parity}</p></div>
+          <div class="tech-sub"><h5>Backend Dependencies</h5><p>${d.backend}</p></div>
+          <div class="tech-sub"><h5>Known Risks</h5><p>${d.risks}</p></div>
+        </div>
+      </section>
+
+      <section data-key="maintenance">
+        <h4>Maintenance Complexity<span class="chev">▾</span></h4>
+        <div class="body">
+          <p>${MAINTENANCE[id]}</p>
+          <div class="tech-sub"><h5>Sequencing</h5><p>${d.sequencing}</p></div>
+        </div>
+      </section>
+
+      <div class="rate-block">
+        <h3>How much student impact does this feature carry?</h3>
+        <div class="slider-row">
+          <input type="range" id="impact" min="1" max="5" step="1" value="${currentImpact}" />
+          <span class="slider-val" id="impactVal">${currentImpact}</span>
+        </div>
+        <div class="scale-labels">
+          <span>1, negligible</span>
+          <span>3, meaningful</span>
+          <span>5, critical</span>
+        </div>
+        <div class="impact-desc" id="impactDesc">${IMPACT_DESCRIPTIONS[currentImpact]}</div>
+        <div class="nav-row">
+          ${state[id] !== undefined ? '<button id="clearBtn">Clear rating</button>' : ''}
+          <button id="confirmBtn" class="primary">${state[id] !== undefined ? 'Update' : 'Confirm and next'}</button>
+        </div>
+      </div>
+    `;
+
+    root.querySelectorAll("aside.eval section[data-key]").forEach(sec => {
+      const key = sec.getAttribute("data-key");
+      if (collapsed.has(key)) sec.classList.add("collapsed");
+      sec.querySelector("h4").addEventListener("click", () => {
+        sec.classList.toggle("collapsed");
+        if (sec.classList.contains("collapsed")) collapsed.add(key); else collapsed.delete(key);
+        saveCollapsed(collapsed);
+      });
+    });
+
+    const slider = document.getElementById("impact");
+    const val = document.getElementById("impactVal");
+    const desc = document.getElementById("impactDesc");
+    slider.addEventListener("input", () => {
+      val.textContent = slider.value;
+      desc.textContent = IMPACT_DESCRIPTIONS[slider.value];
+    });
+    document.getElementById("confirmBtn").addEventListener("click", () => {
+      state[id] = parseInt(slider.value, 10);
+      activeId = null;
+      render();
+    });
+    const clearBtn = document.getElementById("clearBtn");
+    if (clearBtn) clearBtn.addEventListener("click", () => {
+      delete state[id];
+      activeId = null;
+      render();
+    });
+  }
+
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  document.getElementById("shareBtn").addEventListener("click", async () => {
+    const payload = encodeURIComponent(btoa(JSON.stringify(state)));
+    const url = `${window.location.origin}${window.location.pathname}#${payload}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast("Link copied. Paste it back to Juan.");
+    } catch {
+      window.prompt("Copy this link and send it to Juan", url);
+    }
+  });
+
+  const resetBtn = document.getElementById("resetBtn");
+  let resetArmed = false;
+  let resetTimer = null;
+  resetBtn.addEventListener("click", () => {
+    if (!resetArmed) {
+      resetArmed = true;
+      resetBtn.textContent = "Click again to confirm";
+      resetBtn.style.borderColor = "#c0392b";
+      resetBtn.style.color = "#c0392b";
+      resetTimer = setTimeout(() => {
+        resetArmed = false;
+        resetBtn.textContent = "Reset";
+        resetBtn.style.borderColor = "";
+        resetBtn.style.color = "";
+      }, 3000);
+      return;
+    }
+    clearTimeout(resetTimer);
+    resetArmed = false;
+    resetBtn.textContent = "Reset";
+    resetBtn.style.borderColor = "";
+    resetBtn.style.color = "";
+    state = {};
+    activeId = null;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(ORDER_KEY);
+      localStorage.removeItem(COLLAPSE_KEY);
+    } catch (_) {}
+    collapsed = loadCollapsed();
+    order = loadOrder();
+    history.replaceState(null, "", window.location.pathname);
+    render();
+    toast("Reset complete.");
+  });
+
+  render();
+</script>
+</body>
+</html>
