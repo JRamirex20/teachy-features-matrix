@@ -98,12 +98,12 @@
     max-width: 160px; overflow: hidden; text-overflow: ellipsis;
   }
   .dot.active { background: #fff; color: var(--ink); border-color: var(--ink); }
-  .dot.anchor-center { transform: translate(-50%, 50%); }
-  .dot.anchor-center:hover { transform: translate(-50%, 50%) scale(1.06); }
-  .dot.anchor-left { transform: translate(0, 50%); }
-  .dot.anchor-left:hover { transform: translate(0, 50%) scale(1.06); }
-  .dot.anchor-right { transform: translate(-100%, 50%); }
-  .dot.anchor-right:hover { transform: translate(-100%, 50%) scale(1.06); }
+  .dot { --tx: -50%; --ty: 50%; transform: translate(var(--tx), var(--ty)); }
+  .dot:hover { transform: translate(var(--tx), var(--ty)) scale(1.06); }
+  .dot.x-left { --tx: 0; }
+  .dot.x-right { --tx: -100%; }
+  .dot.y-top { --ty: 100%; }
+  .dot.y-bottom { --ty: 0; }
 
   .x-axis { text-align: center; font-size: 12px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; padding-left: 32px; }
 
@@ -524,10 +524,13 @@
       const x = ((f.complexity - 1) / 9) * 100;
       const y = ((impact - 1) / 4) * 100;
       const dot = document.createElement("div");
-      let anchor = "anchor-center";
-      if (x > 75) anchor = "anchor-right";
-      else if (x < 15) anchor = "anchor-left";
-      dot.className = "dot " + anchor + (activeId === f.id ? " active" : "");
+      let xAnchor = "";
+      if (x > 75) xAnchor = "x-right";
+      else if (x < 15) xAnchor = "x-left";
+      let yAnchor = "";
+      if (y > 85) yAnchor = "y-top";
+      else if (y < 15) yAnchor = "y-bottom";
+      dot.className = ["dot", xAnchor, yAnchor, activeId === f.id ? "active" : ""].filter(Boolean).join(" ");
       dot.style.left = x + "%";
       dot.style.bottom = y + "%";
       dot.textContent = f.name.replace(/\s*\(.*?\)\s*/g, "");
