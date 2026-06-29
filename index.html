@@ -538,9 +538,18 @@
       else if (y < 15) yAnchor = "y-bottom";
       const step = 28;
       const center = (n - 1) / 2;
+      // y-top anchors translate the dot downward, so stagger downward only (positive oy = visually down)
+      // y-bottom anchors translate the dot upward, so stagger upward only
+      // default centered, stagger symmetrically
+      const mode = yAnchor === "y-top" ? "down" : yAnchor === "y-bottom" ? "up" : "center";
       items.forEach((it, i) => {
         const ox = n > 1 ? (i % 2 === 0 ? 1 : -1) * 6 : 0;
-        const oy = n > 1 ? (i - center) * step : 0;
+        let oy = 0;
+        if (n > 1) {
+          if (mode === "down") oy = i * step;
+          else if (mode === "up") oy = -i * step;
+          else oy = (i - center) * step;
+        }
         const dot = document.createElement("div");
         dot.className = ["dot", xAnchor, yAnchor, activeId === it.f.id ? "active" : ""].filter(Boolean).join(" ");
         dot.style.left = x + "%";
