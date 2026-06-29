@@ -98,8 +98,8 @@
     max-width: 160px; overflow: hidden; text-overflow: ellipsis;
   }
   .dot.active { background: #fff; color: var(--ink); border-color: var(--ink); }
-  .dot { --tx: -50%; --ty: 50%; transform: translate(var(--tx), var(--ty)); }
-  .dot:hover { transform: translate(var(--tx), var(--ty)) scale(1.06); }
+  .dot { --tx: -50%; --ty: 50%; --ox: 0px; --oy: 0px; transform: translate(calc(var(--tx) + var(--ox)), calc(var(--ty) + var(--oy))); }
+  .dot:hover { transform: translate(calc(var(--tx) + var(--ox)), calc(var(--ty) + var(--oy))) scale(1.08); z-index: 4; }
   .dot.x-left { --tx: 0; }
   .dot.x-right { --tx: -100%; }
   .dot.y-top { --ty: 100%; }
@@ -518,25 +518,40 @@
     const matrix = document.getElementById("matrix");
     // remove existing dots
     matrix.querySelectorAll(".dot").forEach(n => n.remove());
+    const groups = new Map();
     FEATURES.forEach(f => {
       const impact = state[f.id];
       if (impact === undefined) return;
-      const x = ((f.complexity - 1) / 9) * 100;
-      const y = ((impact - 1) / 4) * 100;
-      const dot = document.createElement("div");
+      const key = `${f.complexity}|${impact}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ f, impact });
+    });
+    groups.forEach(items => {
+      const n = items.length;
+      const x = ((items[0].f.complexity - 1) / 9) * 100;
+      const y = ((items[0].impact - 1) / 4) * 100;
       let xAnchor = "";
       if (x > 75) xAnchor = "x-right";
       else if (x < 15) xAnchor = "x-left";
       let yAnchor = "";
       if (y > 85) yAnchor = "y-top";
       else if (y < 15) yAnchor = "y-bottom";
-      dot.className = ["dot", xAnchor, yAnchor, activeId === f.id ? "active" : ""].filter(Boolean).join(" ");
-      dot.style.left = x + "%";
-      dot.style.bottom = y + "%";
-      dot.textContent = f.name.replace(/\s*\(.*?\)\s*/g, "");
-      dot.title = `${f.name}, impact ${impact}, complexity ${f.complexity}`;
-      dot.addEventListener("click", () => { activeId = f.id; render(); });
-      matrix.appendChild(dot);
+      const step = 28;
+      const center = (n - 1) / 2;
+      items.forEach((it, i) => {
+        const ox = n > 1 ? (i % 2 === 0 ? 1 : -1) * 6 : 0;
+        const oy = n > 1 ? (i - center) * step : 0;
+        const dot = document.createElement("div");
+        dot.className = ["dot", xAnchor, yAnchor, activeId === it.f.id ? "active" : ""].filter(Boolean).join(" ");
+        dot.style.left = x + "%";
+        dot.style.bottom = y + "%";
+        dot.style.setProperty("--ox", ox + "px");
+        dot.style.setProperty("--oy", oy + "px");
+        dot.textContent = it.f.name.replace(/\s*\(.*?\)\s*/g, "");
+        dot.title = `${it.f.name}, impact ${it.impact}, complexity ${it.f.complexity}`;
+        dot.addEventListener("click", () => { activeId = it.f.id; render(); });
+        matrix.appendChild(dot);
+      });
     });
   }
 
